@@ -10,14 +10,25 @@ public class SecureWebServer {
         int port = 8086;
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/", new RequestHandler());
-        server.setExecutor(Executors.newFixedThreadPool(10));
+        server.setExecutor(Executors.newFixedThreadPool(10)); // Thread pool for concurrency
         System.out.println("Secure Web Server started on port " + port);
         server.start();
     }
 }
 
 class RequestHandler implements HttpHandler {
-    private static final File BASE_DIR = new File("www").getCanonicalFile();
+    private static final File BASE_DIR;
+
+    static {
+        File dir = new File("www");
+        File resolved;
+        try {
+            resolved = dir.getCanonicalFile();
+        } catch (IOException e) {
+            resolved = dir.getAbsoluteFile(); // fallback
+        }
+        BASE_DIR = resolved;
+    }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -46,7 +57,12 @@ class RequestHandler implements HttpHandler {
         }
 
         if ("/".equals(path)) {
-            String html = Files.readString(new File(BASE_DIR, "index.html").toPath());
+            String html = "<html><body><h2>Welcome to Secure Web Server</h2>" +
+                    "<form method='POST'>" +
+                    "Name: <input type='text' name='name'><br>" +
+                    "Message: <input type='text' name='message'><br>" +
+                    "<input type='submit' value='Send'>" +
+                    "</form></body></html>";
             sendResponse(exchange, 200, html, "text/html");
         } else if (requestedFile.exists() && requestedFile.isFile()) {
             String contentType = guessContentType(requestedFile.getName());
@@ -100,4 +116,3 @@ class RequestHandler implements HttpHandler {
         System.out.println("[LOG] Received: " + data);
     }
 }
-
